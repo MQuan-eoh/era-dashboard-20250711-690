@@ -1,0 +1,168 @@
+<html>
+<head>
+    <script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.3/src/index.js"></script>
+    <style>
+        :root {
+            --primary: #2A2F3D;
+            --accent: #4CAF50;
+            --danger: #FF5252;
+            --glass: rgba(255, 255, 255, 0.9);
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .container {
+            display: grid;
+            gap: 1.5rem;
+            padding: 2rem;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .control-btn {
+            min-width: 120px;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            color: var(--primary);
+        }
+
+        .control-btn.active {
+            color: white;
+            box-shadow: inset 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .control-btn.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(145deg, var(--accent), #45a049);
+        }
+
+        .control-btn:nth-child(2).active::after {
+            background: linear-gradient(145deg, var(--danger), #ff1744);
+        }
+
+        .control-btn span {
+            position: relative;
+            z-index: 1;
+        }
+
+        .control-btn:active {
+            transform: scale(0.98);
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                width: 90%;
+                padding: 1.5rem;
+            }
+            
+            .control-btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="button-group">
+            <button class="control-btn" id="button-0" onclick="controlButton(0, !this.classList.contains('active'))">
+                <span>Device 1: OFF</span>
+            </button>
+            <button class="control-btn" id="button-1" onclick="controlButton(1, !this.classList.contains('active'))">
+                <span>Device 2: OFF</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const eraWidget = new EraWidget();
+        let realtimeConfigs = new Array(1).fill(null);
+        let actionConfigs = new Array(4).fill(null);
+        let isConfigured = false;
+
+        eraWidget.init({
+            onConfiguration: (configuration) => {
+                console.log('E-Ra Configuration received:', configuration);
+                
+                if (configuration.realtime_configs?.[0]) {
+                    realtimeConfigs[0] = configuration.realtime_configs[0];
+                }
+
+                actionConfigs = [
+                    configuration.actions?.[0],
+                    configuration.actions?.[1],
+                    configuration.actions?.[2],
+                    configuration.actions?.[3]
+                ];
+
+                isConfigured = true;
+                document.body.classList.add('configured');
+            },
+            onValues: (values) => {
+                realtimeConfigs.forEach((config, index) => {
+                    if (config && values[config.id]) {
+                        updateSensorDisplay(index, values[config.id].value);
+                    }
+                });
+            }
+        });
+
+        function controlButton(buttonIndex, isOn) {
+            if (!isConfigured) {
+                console.warn('Configuration pending');
+                return;
+            }
+
+            const actionIndex = buttonIndex * 2 + (isOn ? 0 : 1);
+            const action = actionConfigs[actionIndex]?.action;
+
+            if (action) {
+                eraWidget.triggerAction(action, null, { value: isOn ? 1 : 0 });
+                updateButtonState(buttonIndex, isOn);
+            }
+        }
+
+        function updateButtonState(index, state) {
+            const btn = document.getElementById(`button-${index}`);
+            if (!btn) return;
+
+            btn.classList.toggle('active', state);
+            btn.querySelector('span').textContent = 
+                `Device ${index + 1}: ${state ? 'ON' : 'OFF'}`;
+        }
+
+        function updateSensorDisplay(index, value) {
+            console.log(`Sensor ${index} updated:`, value);
+        }
+    </script>
+</body>
+</html>
